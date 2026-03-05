@@ -1,0 +1,11 @@
+# Firedrake container for PDE/optimization work on Windows.
+# Usage: docker compose -f docker-compose.firedrake.yml run firedrake python3 your_script.py
+# Or:    docker compose -f docker-compose.firedrake.yml run firedrake bash
+services:
+  firedrake:
+    image: firedrakeproject/firedrake:latest
+    volumes:
+      - .:/home/firedrake/shared
+    working_dir: /home/firedrake/shared
+    stdin_open: true
+    tty: true
