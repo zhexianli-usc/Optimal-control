@@ -12,7 +12,6 @@ venv/
 .vscode/
 
 # Data and model files (optional: remove *.npz to track data)
-*.npz
 *.pth
 *.pt
 *.ckpt
