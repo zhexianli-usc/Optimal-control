@@ -171,6 +171,28 @@ def bc_enc_to_field(bc_enc, n_x_pts, n_t_pts):
     return field
 
 
+def load_fno_checkpoint(path, device=None):
+    """
+    Load a saved FNO (real-freq) checkpoint for inference or comparison.
+    Returns: (net, config, x, t)
+    - net: FNO2d in eval mode, on device
+    - config: dict with m_mean, m_std, n_x_pts, n_t_pts, etc.
+    - x, t: 1D numpy arrays (grid)
+    """
+    if device is None:
+        device = DEVICE
+    ck = torch.load(path, map_location=device, weights_only=False)
+    cfg = ck["config"]
+    net = FNO2d(
+        cfg["in_channels"], 1, cfg["width"],
+        cfg["n_x_pts"], cfg["n_t_pts"], cfg["k_max"], cfg["n_layers"],
+        use_channel_mlp=cfg["use_channel_mlp"],
+    ).to(device)
+    net.load_state_dict(ck["state_dict"])
+    net.eval()
+    return net, cfg, ck["x"], ck["t"]
+
+
 def main():
     bc_enc, m_opts, x, t = load_or_generate_data(n_samples=40, bc_type="dirichlet")
     n_samples = bc_enc.shape[0]
@@ -256,6 +278,27 @@ def main():
     print(f"  Final test MSE (original scale): {test_mse_orig:.6e}")
 
     os.makedirs(OUT_DIR, exist_ok=True)
+
+    # Save trained model and config for later comparison / inference
+    checkpoint = {
+        "state_dict": net.state_dict(),
+        "config": {
+            "in_channels": in_channels,
+            "n_x_pts": n_x_pts,
+            "n_t_pts": n_t_pts,
+            "k_max": int(k_max),
+            "width": FNO_HIDDEN,
+            "n_layers": FNO_N_LAYERS,
+            "use_channel_mlp": USE_CHANNEL_MLP,
+            "m_mean": m_mean,
+            "m_std": m_std,
+        },
+        "x": np.asarray(x),
+        "t": np.asarray(t),
+    }
+    model_path = os.path.join(OUT_DIR, "fno_heat_bc_real_freq_model.pt")
+    torch.save(checkpoint, model_path)
+    print(f"  Trained model saved to {model_path} (load for future comparisons)")
 
     # Save loss for every epoch to CSV
     loss_csv = os.path.join(OUT_DIR, "train_fno_heat_bc_real_freq_loss_history.csv")
