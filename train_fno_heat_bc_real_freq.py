@@ -3,6 +3,7 @@ Train FNO for heat optimal control using discrete Fourier transform with real fr
 Both forward and inverse transforms use explicit DFT/IDFT as finite sums with real frequency
 and mode convention [-N/2, N/2]. No complex frequency (no θ parameters).
 """
+import csv
 import numpy as np
 import torch
 import torch.nn as nn
@@ -207,6 +208,7 @@ def main():
 
     indices = np.arange(n_samples)
     loss_hist = []
+    loss_every_500 = []
     mse_orig_hist = []
     mse_orig_epochs = []
     for ep in range(EPOCHS):
@@ -228,6 +230,8 @@ def main():
             n_batches += 1
         avg_loss = epoch_loss / max(n_batches, 1)
         loss_hist.append(avg_loss)
+        if (ep + 1) % 500 == 0:
+            loss_every_500.append((ep + 1, avg_loss))
         scheduler.step(avg_loss)
         if (ep + 1) % 5 == 0 or ep == 0:
             with torch.no_grad():
@@ -252,6 +256,23 @@ def main():
         test_mse_orig = ((pred_orig - m_orig_np) ** 2).mean()
     print(f"  Final test MSE (original scale): {test_mse_orig:.6e}")
 
+    # Save loss every 500 epochs to CSV
+    loss_500_csv = "train_fno_heat_bc_real_freq_loss_every_500.csv"
+    with open(loss_500_csv, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["epoch", "loss"])
+        for ep, loss_val in loss_every_500:
+            writer.writerow([ep, loss_val])
+    print(f"  Loss every 500 epochs saved to {loss_500_csv}")
+
+    np.savetxt(
+        "train_fno_heat_bc_real_freq_loss_plot_data.csv",
+        np.column_stack([np.arange(1, len(loss_hist) + 1), loss_hist]),
+        delimiter=",",
+        header="epoch,loss",
+        comments="",
+    )
+
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8, 6), sharex=True)
     ax1.semilogy(np.arange(1, len(loss_hist) + 1), loss_hist, color="C0", linewidth=0.5, alpha=0.8)
     ax1.set_ylabel("MSE (normalized)")
@@ -266,6 +287,55 @@ def main():
     plt.savefig("train_fno_real_freq_mse.png", dpi=150)
     plt.close()
     print("  Plot saved to train_fno_real_freq_mse.png")
+
+    # Plot pred vs training data for example BCs and save plotting data
+    n_examples = min(3, n_samples)
+    example_indices = np.linspace(0, n_samples - 1, n_examples, dtype=int)
+    pred_all_np = pred_flat_all.cpu().numpy() * m_std + m_mean
+    m_orig_np_3d = m_orig_np.reshape(n_samples, n_x_pts, n_t_pts)
+    fig2, axes = plt.subplots(n_examples, 3, figsize=(12, 3 * n_examples))
+    if n_examples == 1:
+        axes = axes.reshape(1, -1)
+    bc_comparison_rows = []
+    for i, ex in enumerate(example_indices):
+        pred_2d = pred_all_np[ex].reshape(n_x_pts, n_t_pts)
+        target_2d = m_orig_np_3d[ex]
+        diff_2d = pred_2d - target_2d
+        for ix in range(n_x_pts):
+            for it in range(n_t_pts):
+                bc_comparison_rows.append({
+                    "example": ex, "x": x[ix], "t": t[it],
+                    "pred": pred_2d[ix, it], "target": target_2d[ix, it], "diff": diff_2d[ix, it],
+                })
+        mid_x = n_x_pts // 2
+        axes[i, 0].plot(t, pred_2d[mid_x, :], "b-", label="FNO pred")
+        axes[i, 0].plot(t, target_2d[mid_x, :], "r--", label="Training data")
+        axes[i, 0].set_xlabel("t")
+        axes[i, 0].set_ylabel("m(x_mid, t)")
+        axes[i, 0].set_title(f"BC example {ex}: pred vs target")
+        axes[i, 0].legend()
+        axes[i, 0].grid(True, alpha=0.3)
+        axes[i, 1].plot(t, diff_2d[mid_x, :], "g-")
+        axes[i, 1].axhline(0, color="k", linestyle=":", alpha=0.5)
+        axes[i, 1].set_xlabel("t")
+        axes[i, 1].set_ylabel("pred - target")
+        axes[i, 1].set_title(f"BC example {ex}: error at x_mid")
+        axes[i, 1].grid(True, alpha=0.3)
+        im = axes[i, 2].imshow(diff_2d, aspect="auto", origin="lower",
+                               extent=[t[0], t[-1], x[0], x[-1]], cmap="RdBu_r")
+        axes[i, 2].set_xlabel("t")
+        axes[i, 2].set_ylabel("x")
+        axes[i, 2].set_title(f"BC example {ex}: error field")
+        plt.colorbar(im, ax=axes[i, 2], label="pred - target")
+    plt.tight_layout()
+    plt.savefig("train_fno_heat_bc_real_freq_bc_comparison.png", dpi=150)
+    plt.close()
+    print("  BC comparison plot saved to train_fno_heat_bc_real_freq_bc_comparison.png")
+    with open("train_fno_heat_bc_real_freq_bc_comparison_data.csv", "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=["example", "x", "t", "pred", "target", "diff"])
+        writer.writeheader()
+        writer.writerows(bc_comparison_rows)
+    print("  BC comparison data saved to train_fno_heat_bc_real_freq_bc_comparison_data.csv")
     return net, loss_hist
 
 
