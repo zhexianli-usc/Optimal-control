@@ -4,6 +4,7 @@ Both forward and inverse transforms use explicit DFT/IDFT as finite sums with re
 and mode convention [-N/2, N/2]. No complex frequency (no θ parameters).
 """
 import csv
+import os
 import numpy as np
 import torch
 import torch.nn as nn
@@ -25,6 +26,7 @@ FNO_N_LAYERS = 4
 FNO_HIDDEN = 2
 USE_CHANNEL_MLP = True
 SCHEDULER_PATIENCE = 1000
+OUT_DIR = "train_fno_heat_bc_real_freq_output"   # Folder for all saved data and plots
 
 
 def get_low_mode_indices(n, k_max):
@@ -208,7 +210,6 @@ def main():
 
     indices = np.arange(n_samples)
     loss_hist = []
-    loss_every_500 = []
     mse_orig_hist = []
     mse_orig_epochs = []
     for ep in range(EPOCHS):
@@ -230,8 +231,6 @@ def main():
             n_batches += 1
         avg_loss = epoch_loss / max(n_batches, 1)
         loss_hist.append(avg_loss)
-        if (ep + 1) % 500 == 0:
-            loss_every_500.append((ep + 1, avg_loss))
         scheduler.step(avg_loss)
         if (ep + 1) % 5 == 0 or ep == 0:
             with torch.no_grad():
@@ -256,17 +255,19 @@ def main():
         test_mse_orig = ((pred_orig - m_orig_np) ** 2).mean()
     print(f"  Final test MSE (original scale): {test_mse_orig:.6e}")
 
-    # Save loss every 500 epochs to CSV
-    loss_500_csv = "train_fno_heat_bc_real_freq_loss_every_500.csv"
-    with open(loss_500_csv, "w", newline="") as f:
+    os.makedirs(OUT_DIR, exist_ok=True)
+
+    # Save loss for every epoch to CSV
+    loss_csv = os.path.join(OUT_DIR, "train_fno_heat_bc_real_freq_loss_history.csv")
+    with open(loss_csv, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(["epoch", "loss"])
-        for ep, loss_val in loss_every_500:
+        for ep, loss_val in enumerate(loss_hist, start=1):
             writer.writerow([ep, loss_val])
-    print(f"  Loss every 500 epochs saved to {loss_500_csv}")
+    print(f"  Loss history (every epoch) saved to {OUT_DIR}/train_fno_heat_bc_real_freq_loss_history.csv")
 
     np.savetxt(
-        "train_fno_heat_bc_real_freq_loss_plot_data.csv",
+        os.path.join(OUT_DIR, "train_fno_heat_bc_real_freq_loss_plot_data.csv"),
         np.column_stack([np.arange(1, len(loss_hist) + 1), loss_hist]),
         delimiter=",",
         header="epoch,loss",
@@ -284,9 +285,9 @@ def main():
     ax2.set_xlabel("Epoch")
     ax2.grid(True, alpha=0.3)
     plt.tight_layout()
-    plt.savefig("train_fno_real_freq_mse.png", dpi=150)
+    plt.savefig(os.path.join(OUT_DIR, "train_fno_real_freq_mse.png"), dpi=150)
     plt.close()
-    print("  Plot saved to train_fno_real_freq_mse.png")
+    print(f"  Plot saved to {OUT_DIR}/train_fno_real_freq_mse.png")
 
     # Plot pred vs training data for example BCs and save plotting data
     n_examples = min(3, n_samples)
@@ -328,14 +329,14 @@ def main():
         axes[i, 2].set_title(f"BC example {ex}: error field")
         plt.colorbar(im, ax=axes[i, 2], label="pred - target")
     plt.tight_layout()
-    plt.savefig("train_fno_heat_bc_real_freq_bc_comparison.png", dpi=150)
+    plt.savefig(os.path.join(OUT_DIR, "train_fno_heat_bc_real_freq_bc_comparison.png"), dpi=150)
     plt.close()
-    print("  BC comparison plot saved to train_fno_heat_bc_real_freq_bc_comparison.png")
-    with open("train_fno_heat_bc_real_freq_bc_comparison_data.csv", "w", newline="") as f:
+    print(f"  BC comparison plot saved to {OUT_DIR}/train_fno_heat_bc_real_freq_bc_comparison.png")
+    with open(os.path.join(OUT_DIR, "train_fno_heat_bc_real_freq_bc_comparison_data.csv"), "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=["example", "x", "t", "pred", "target", "diff"])
         writer.writeheader()
         writer.writerows(bc_comparison_rows)
-    print("  BC comparison data saved to train_fno_heat_bc_real_freq_bc_comparison_data.csv")
+    print(f"  BC comparison data saved to {OUT_DIR}/train_fno_heat_bc_real_freq_bc_comparison_data.csv")
     return net, loss_hist
 
 

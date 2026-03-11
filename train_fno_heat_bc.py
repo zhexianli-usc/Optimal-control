@@ -11,6 +11,7 @@ Output: m(x, t) = optimal control on the grid.
 Supervised loss: MSE between FNO(BC_field)(x,t) and precomputed optimal m from data.
 """
 import csv
+import os
 import numpy as np
 import torch
 import torch.nn as nn
@@ -36,6 +37,7 @@ FNO_N_LAYERS = 4   # Number of FNO blocks (deeper = more capacity)
 FNO_HIDDEN = 16    # Hidden width for FNO (larger = more capacity, try 64 if underfitting)
 USE_CHANNEL_MLP = True   # 1x1 channel mixing per block (Sec 3.4.3: helps high-freq details)
 SCHEDULER_PATIENCE = 1000   # Epochs before LR drop (smaller = earlier fine-tuning)
+OUT_DIR = "train_fno_heat_bc_output"   # Folder for all saved data and plots
 
 
 def get_low_mode_indices(n, k_max):
@@ -262,7 +264,6 @@ def main():
 
     indices = np.arange(n_samples)
     loss_hist = []
-    loss_every_500 = []  # (epoch, loss) every 500 epochs
     mse_orig_hist = []
     mse_orig_epochs = []
     for ep in range(EPOCHS):
@@ -284,8 +285,6 @@ def main():
             n_batches += 1
         avg_loss = epoch_loss / max(n_batches, 1)
         loss_hist.append(avg_loss)
-        if (ep + 1) % 500 == 0:
-            loss_every_500.append((ep + 1, avg_loss))
         scheduler.step(avg_loss)
         if (ep + 1) % 5 == 0 or ep == 0:
             with torch.no_grad():
@@ -317,18 +316,20 @@ def main():
     print(f"  Final test MSE (normalized): {test_mse_norm:.6e}")
     print(f"  Final test MSE (original scale): {test_mse_orig:.6e}")
 
-    # Save loss every 500 epochs to CSV
-    loss_500_csv = "train_fno_heat_bc_loss_every_500.csv"
-    with open(loss_500_csv, "w", newline="") as f:
+    os.makedirs(OUT_DIR, exist_ok=True)
+
+    # Save loss for every epoch to CSV
+    loss_csv = os.path.join(OUT_DIR, "train_fno_heat_bc_loss_history.csv")
+    with open(loss_csv, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(["epoch", "loss"])
-        for ep, loss_val in loss_every_500:
+        for ep, loss_val in enumerate(loss_hist, start=1):
             writer.writerow([ep, loss_val])
-    print(f"  Loss every 500 epochs saved to {loss_500_csv}")
+    print(f"  Loss history (every epoch) saved to {OUT_DIR}/train_fno_heat_bc_loss_history.csv")
 
     # Save full loss curve data for plotting
     np.savetxt(
-        "train_fno_heat_bc_loss_plot_data.csv",
+        os.path.join(OUT_DIR, "train_fno_heat_bc_loss_plot_data.csv"),
         np.column_stack([np.arange(1, len(loss_hist) + 1), loss_hist]),
         delimiter=",",
         header="epoch,loss",
@@ -348,10 +349,10 @@ def main():
     ax2.set_title("Test MSE (original scale, every 2000 epochs)")
     ax2.grid(True, alpha=0.3)
     plt.tight_layout()
-    plot_path = "train_fno_mse.png"
+    plot_path = os.path.join(OUT_DIR, "train_fno_mse.png")
     plt.savefig(plot_path, dpi=150)
     plt.close()
-    print(f"  Training MSE plot saved to {plot_path}")
+    print(f"  Training MSE plot saved to {OUT_DIR}/train_fno_mse.png")
 
     # Plot pred vs training data for example BCs and save plotting data
     n_examples = min(3, n_samples)
@@ -395,14 +396,14 @@ def main():
         axes[i, 2].set_title(f"BC example {ex}: error field")
         plt.colorbar(im, ax=axes[i, 2], label="pred - target")
     plt.tight_layout()
-    plt.savefig("train_fno_heat_bc_bc_comparison.png", dpi=150)
+    plt.savefig(os.path.join(OUT_DIR, "train_fno_heat_bc_bc_comparison.png"), dpi=150)
     plt.close()
-    print("  BC comparison plot saved to train_fno_heat_bc_bc_comparison.png")
-    with open("train_fno_heat_bc_bc_comparison_data.csv", "w", newline="") as f:
+    print(f"  BC comparison plot saved to {OUT_DIR}/train_fno_heat_bc_bc_comparison.png")
+    with open(os.path.join(OUT_DIR, "train_fno_heat_bc_bc_comparison_data.csv"), "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=["example", "x", "t", "pred", "target", "diff"])
         writer.writeheader()
         writer.writerows(bc_comparison_rows)
-    print("  BC comparison data saved to train_fno_heat_bc_bc_comparison_data.csv")
+    print(f"  BC comparison data saved to {OUT_DIR}/train_fno_heat_bc_bc_comparison_data.csv")
 
     return net, loss_hist
 
