@@ -20,11 +20,11 @@ from heat_1d_numpy_scipy import (
 # Data generation grid (coarser = faster)
 N_X_DATA = 24
 N_T_DATA = 30
-ALPHA_DATA = 0.1
+ALPHA_DATA = 0.5
 
 # GRF kernel: K(t,t') = sigma^2 * exp(-|t-t'|^2 / (2*ell^2))
-GRF_ELL = 0.15
-GRF_SIGMA = 1
+GRF_ELL = 0.2
+GRF_SIGMA = 2
 
 
 def sample_grf_on_grid(t, ell=GRF_ELL, sigma=GRF_SIGMA):

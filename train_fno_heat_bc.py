@@ -34,10 +34,11 @@ from train_deeponet_heat_bc import (
 # FNO_N_LAYERS (e.g. 6), use more training data, or train longer (EPOCHS).
 FNO_N_MODES = 8   # Fourier modes per dimension (keep below Nyquist; increase for finer scales)
 FNO_N_LAYERS = 4   # Number of FNO blocks (deeper = more capacity)
-FNO_HIDDEN = 16    # Hidden width for FNO (larger = more capacity, try 64 if underfitting)
+FNO_HIDDEN = 2    # Hidden width for FNO (larger = more capacity, try 64 if underfitting)
 USE_CHANNEL_MLP = True   # 1x1 channel mixing per block (Sec 3.4.3: helps high-freq details)
 SCHEDULER_PATIENCE = 1000   # Epochs before LR drop (smaller = earlier fine-tuning)
 OUT_DIR = "train_fno_heat_bc_output"   # Folder for all saved data and plots
+output_frequency = 500
 
 
 def get_low_mode_indices(n, k_max):
@@ -313,7 +314,7 @@ def main():
         avg_loss = epoch_loss / max(n_batches, 1)
         loss_hist.append(avg_loss)
         scheduler.step(avg_loss)
-        if (ep + 1) % 5 == 0 or ep == 0:
+        if (ep + 1) % output_frequency == 0 or ep == 0:
             with torch.no_grad():
                 pred_all = net(in_field_t)
                 pred_flat_all = pred_all.reshape(pred_all.shape[0], -1)
@@ -377,10 +378,10 @@ def main():
 
     # Save full loss curve data for plotting
     np.savetxt(
-        os.path.join(OUT_DIR, "train_fno_heat_bc_loss_plot_data.csv"),
-        np.column_stack([np.arange(1, len(loss_hist) + 1), loss_hist]),
+        os.path.join(OUT_DIR, "train_fno_heat_bc_mse_orig_hist.csv"),
+        np.column_stack([np.arange(1, len(mse_orig_hist) + 1), mse_orig_hist]),
         delimiter=",",
-        header="epoch,loss",
+        header="epoch,mse",
         comments="",
     )
 
@@ -394,7 +395,7 @@ def main():
         ax2.semilogy(mse_orig_epochs, mse_orig_hist, "o-", color="C1", markersize=4)
     ax2.set_ylabel("MSE (original scale)")
     ax2.set_xlabel("Epoch")
-    ax2.set_title("Test MSE (original scale, every 2000 epochs)")
+    ax2.set_title(f"Test MSE (original scale, every + {output_frequency} epochs)")
     ax2.grid(True, alpha=0.3)
     plt.tight_layout()
     plot_path = os.path.join(OUT_DIR, "train_fno_mse.png")

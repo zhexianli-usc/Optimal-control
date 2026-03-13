@@ -254,7 +254,7 @@ def main():
         avg_loss = epoch_loss / max(n_batches, 1)
         loss_hist.append(avg_loss)
         scheduler.step(avg_loss)
-        if (ep + 1) % 5 == 0 or ep == 0:
+        if (ep + 1) % 500 == 0 or ep == 0:
             with torch.no_grad():
                 pred_all = net(in_field_t)
                 pred_flat_all = pred_all.reshape(pred_all.shape[0], -1)
@@ -310,13 +310,13 @@ def main():
     print(f"  Loss history (every epoch) saved to {OUT_DIR}/train_fno_heat_bc_real_freq_loss_history.csv")
 
     np.savetxt(
-        os.path.join(OUT_DIR, "train_fno_heat_bc_real_freq_loss_plot_data.csv"),
-        np.column_stack([np.arange(1, len(loss_hist) + 1), loss_hist]),
+        os.path.join(OUT_DIR, "train_fno_heat_bc_mse_orig_hist.csv"),
+        np.column_stack([np.arange(1, len(mse_orig_hist) + 1), mse_orig_hist]),
         delimiter=",",
-        header="epoch,loss",
+        header="epoch,mse",
         comments="",
     )
-
+    
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8, 6), sharex=True)
     ax1.semilogy(np.arange(1, len(loss_hist) + 1), loss_hist, color="C0", linewidth=0.5, alpha=0.8)
     ax1.set_ylabel("MSE (normalized)")
