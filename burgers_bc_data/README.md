@@ -45,11 +45,27 @@ Or use the helper scripts (run from `burgers_bc_data` in **Anaconda Prompt** or 
   `data = np.load("burgers_bc_data.npz", allow_pickle=True)`  
   then `g_left`, `g_right`, `u`, `x`, `t` = `data["g_left"]`, etc.
 
-## Solver
+## Solver (`generate_burgers_bc_data.py`)
 
-- **Explicit Euler** finite difference in time (same style as the [neural operator Burgers example](https://neuraloperator.github.io/dev/auto_examples/data_gen/plot_burgers_2d_solver.html)):  
-  \( u^{n+1} = u^n + \Delta t\,(-u^n u_x^n + \nu u_{xx}^n) \).
-- Central differences for \( u_x \) and \( u_{xx} \); Dirichlet BCs applied after each sub-step.
-- Sub-stepping between output time levels keeps the scheme stable (default 25 sub-steps per output interval).
-- Domain: \( L=1 \), \( T=0.5 \). Default viscosity `nu=0.01`, grid `n_x=24`, `n_t=30`.
-- Boundary functions \( g_{\mathrm{left}}(t) \), \( g_{\mathrm{right}}(t) \) are sampled from a Gaussian random field (GRF) in time.
+- **Explicit Euler** in time; **upwind** \( u_x \); explicit diffusion \( \nu u_{xx} \); Dirichlet BCs each sub-step.
+- Sub-stepping between output times for stability (default 80 sub-steps per interval).
+- Domain: \( L=1 \), \( T=0.5 \). Default `nu=0.01`, `n_x=24`, `n_t=30`.
+- BCs sampled from a GRF in time.
+
+## Burgers optimal control (`generate_burgers_optimal_control_data.py`)
+
+Distributed control \( m(x,t) \) with the same objective structure as the heat optimal-control generator:
+
+- **State:** \( u_t + u u_x = \nu u_{xx} + m \), Dirichlet BCs \( g_{\mathrm{left}}(t), g_{\mathrm{right}}(t) \), IC \( u(x,0)=\sin(\pi x/L) \) (corners match BC at \( t=0 \)).
+- **Cost:** \( J = \frac{1}{2}\sum (u-u_d)^2\,dx\,dt + \frac{\alpha}{2}\sum m^2\,dx\,dt \) with \( u_d \) from `heat_1d_numpy_scipy.u_desired`.
+- **Forward:** semi-implicit diffusion \( (I-\Delta t\,\nu L)u^{k+1} = u^k + \Delta t(-F(u^k)+m^{k+1}) \) with first-order upwind \( F \).
+- **Adjoint:** discrete **discretize-then-differentiate** adjoint (transpose of linearized forward w.r.t. \( u \), implicit diffusion transpose), consistent with the principles in [Fikl et al., arXiv:2209.03270](https://arxiv.org/pdf/2209.03270).
+- **Gradient:** \( \nabla_m J = (p + \alpha m)\,dx\,dt \); optimization with **L-BFGS-B** (same pattern as `generate_heat_optimal_control_data.py`).
+
+**Output** matches heat optimal-control layout: `bc_type`, `g_left`, `g_right`, `m_opts`, `x`, `t` (plus `nu`, `alpha`, `equation` metadata).
+
+```bash
+python generate_burgers_optimal_control_data.py --samples 20 --plot
+```
+
+`--plot` saves `burgers_optimal_control_verification.png` (optimal \( m \), state \( u \), desired \( u_d \), tracking error).

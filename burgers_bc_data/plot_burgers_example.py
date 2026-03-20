@@ -8,7 +8,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-DEFAULT_DATA = os.path.join(SCRIPT_DIR, "burgers_bc_data.npz")
+DEFAULT_DATA = os.path.join(SCRIPT_DIR, "burgers_optimal_control_data.npz")
 
 
 def plot_example_heatmap(data_path, sample_idx=0, save_path=None):
