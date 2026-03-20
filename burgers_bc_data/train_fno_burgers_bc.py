@@ -241,12 +241,12 @@ def main():
                 pred_flat_all = pred_all.reshape(pred_all.shape[0], -1)
                 pred_orig = pred_flat_all.cpu().numpy() * u_std + u_mean
                 u_orig = u_target_t.cpu().numpy() * u_std + u_mean
-                mse_orig = ((pred_orig - u_orig) ** 2).mean()
+                mse_orig = ((pred_orig - u_orig) ** 2).mean() / ((u_orig ** 2).mean())
             mse_orig_hist.append(float(mse_orig))
             mse_orig_epochs.append(ep + 1)
             print(
                 f"  Epoch {ep+1}/{EPOCHS}, train MSE (norm) = {avg_loss:.6e}, "
-                f"MSE (orig) = {mse_orig:.6e}, lr = {opt.param_groups[0]['lr']:.2e}"
+                f"REL (orig) = {mse_orig:.6e}, lr = {opt.param_groups[0]['lr']:.2e}"
             )
 
     print("\nTraining finished.")
@@ -255,8 +255,8 @@ def main():
         pred_flat_all = pred_all.reshape(pred_all.shape[0], -1)
         pred_orig = pred_flat_all.cpu().numpy() * u_std + u_mean
         u_orig_np = u_target_t.cpu().numpy() * u_std + u_mean
-        test_mse_orig = ((pred_orig - u_orig_np) ** 2).mean()
-    print(f"  Final test MSE (original scale): {test_mse_orig:.6e}")
+        test_mse_orig = ((pred_orig - u_orig_np) ** 2).mean() / ((u_orig ** 2).mean())
+    print(f"  Final test REL (original scale): {test_mse_orig:.6e}")
 
     os.makedirs(OUT_DIR, exist_ok=True)
     checkpoint = {

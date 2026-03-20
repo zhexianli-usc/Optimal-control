@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 DATA_FILE = "heat_optimal_control_data.npz"
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 HIDDEN = 16
-EPOCHS = 60000
+EPOCHS = 50000
 BATCH_SIZE = 16
 LR = 1e-3
 

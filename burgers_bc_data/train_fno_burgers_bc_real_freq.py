@@ -19,7 +19,7 @@ LR = 1e-3
 USE_TARGET_NORMALIZATION = True
 FNO_N_MODES = 8
 FNO_N_LAYERS = 4
-FNO_HIDDEN = 2
+FNO_HIDDEN = 32
 USE_CHANNEL_MLP = True
 SCHEDULER_PATIENCE = 1000
 OUT_DIR = os.path.join(SCRIPT_DIR, "train_fno_burgers_bc_real_freq_output")
@@ -234,7 +234,7 @@ def main():
                 pred_flat_all = pred_all.reshape(pred_all.shape[0], -1)
                 pred_orig = pred_flat_all.cpu().numpy() * u_std + u_mean
                 u_orig = u_target_t.cpu().numpy() * u_std + u_mean
-                mse_orig = ((pred_orig - u_orig) ** 2).mean()
+                mse_orig = ((pred_orig - u_orig) ** 2).mean() / ((u_orig ** 2).mean())
             mse_orig_hist.append(float(mse_orig))
             mse_orig_epochs.append(ep + 1)
             print(
@@ -248,7 +248,7 @@ def main():
         pred_flat_all = pred_all.reshape(pred_all.shape[0], -1)
         pred_orig = pred_flat_all.cpu().numpy() * u_std + u_mean
         u_orig_np = u_target_t.cpu().numpy() * u_std + u_mean
-        test_mse_orig = ((pred_orig - u_orig_np) ** 2).mean()
+        test_mse_orig = ((pred_orig - u_orig_np) ** 2).mean()  / ((u_orig_np ** 2).mean())
     print(f"  Final test MSE (original scale): {test_mse_orig:.6e}")
 
     os.makedirs(OUT_DIR, exist_ok=True)
