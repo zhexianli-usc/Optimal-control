@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_FILE = os.path.join(SCRIPT_DIR, "burgers_bc_data.npz")
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-EPOCHS = 50000
+EPOCHS = 60000
 BATCH_SIZE = 16
 LR = 1e-3
 USE_TARGET_NORMALIZATION = True
@@ -308,11 +308,20 @@ def main():
     fig2, axes = plt.subplots(n_examples, 3, figsize=(12, 3 * n_examples))
     if n_examples == 1:
         axes = axes.reshape(1, -1)
+    
+    bc_comparison_rows = []
+
     for i, ex in enumerate(example_indices):
         pred_2d = pred_all_np[ex].reshape(n_x_pts, n_t_pts)
         target_2d = u_orig_3d[ex]
-        diff_2d = pred_2d - target_2d
+        diff_2d = np.abs(pred_2d - target_2d)
         mid_x = n_x_pts // 2
+        for ix in range(n_x_pts):
+            for it in range(n_t_pts):
+                bc_comparison_rows.append({
+                    "example": ex, "x": x[ix], "t": t[it],
+                    "pred": pred_2d[ix, it], "target": target_2d[ix, it], "diff": diff_2d[ix, it],
+                })
         axes[i, 0].plot(t, pred_2d[mid_x, :], "b-", label="FNO pred")
         axes[i, 0].plot(t, target_2d[mid_x, :], "r--", label="Target u")
         axes[i, 0].set_xlabel("t")
@@ -326,7 +335,7 @@ def main():
         axes[i, 1].set_ylabel("pred - target")
         axes[i, 1].grid(True, alpha=0.3)
         im = axes[i, 2].imshow(diff_2d, aspect="auto", origin="lower",
-                               extent=[t[0], t[-1], x[0], x[-1]], cmap="RdBu_r")
+                               extent=[t[0], t[-1], x[0], x[-1]], cmap="Oranges")
         axes[i, 2].set_xlabel("t")
         axes[i, 2].set_ylabel("x")
         plt.colorbar(im, ax=axes[i, 2], label="pred - target")
@@ -334,6 +343,12 @@ def main():
     plt.savefig(os.path.join(OUT_DIR, "train_fno_burgers_bc_real_freq_comparison.png"), dpi=150)
     plt.close()
     print(f"  Plots saved to {OUT_DIR}")
+    with open(os.path.join(OUT_DIR, "train_fno_heat_bc_real_freq_bc_comparison_data.csv"), "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=["example", "x", "t", "pred", "target", "diff"])
+        writer.writeheader()
+        writer.writerows(bc_comparison_rows)
+    print(f"  BC comparison data saved to {OUT_DIR}/burgers_real_freq_bc_comparison_data.csv")
+    
     return net, loss_hist
 
 
