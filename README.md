@@ -1,21 +1,78 @@
-# Optimal Control
+# Burgers BC Data
 
-Optimal control for 1D heat equation with neural operator surrogates (DeepONet, FNO).
+This branch contains a minimal, paper-ready release focused on the `burgers_bc_data` module for the 1D viscous Burgers equation.
 
-## Contents
+## Scope
 
-- **Heat solver**: `heat_1d_numpy_scipy.py` — 1D time-dependent heat equation solver (NumPy/SciPy).
-- **Data generation**: `generate_heat_optimal_control_data.py` — Generates optimal control data with GRF boundary conditions.
-- **Training**: `train_deeponet_heat_bc.py`, `train_fno_heat_bc.py`, `train_fno_heat_bc_real_freq.py` — Train DeepONet or FNO (BC → optimal control).
-- **Inference**: `heat_optimal_control_deeponet_1d.py`, `heat_optimal_control_fno_1d.py` — Use trained models for optimal control.
+The purpose of this branch is to provide a clean open-source artifact with:
+- data generation scripts
+- prepared datasets
+- training scripts for boundary-condition-to-solution operator learning
+- training outputs for reproducibility
 
-## Setup
+All non-Burgers components from the original multi-problem repository are intentionally excluded.
 
-- Python 3.x with NumPy, SciPy, PyTorch.
-- Optional: FEniCS/dolfin-adjoint for `Optimal_control.py` (see `INSTALL_*.md`).
+## Folder Layout
 
-## Usage
+```text
+burgers_bc_data/
+├── README.md
+├── burgers_bc_data.npz
+├── burgers_optimal_control_data.npz
+├── generate_burgers_bc_data.py
+├── generate_burgers_optimal_control_data.py
+├── plot_burgers_example.py
+├── train_fno_burgers_bc.py
+├── train_fno_burgers_bc_real_freq.py
+├── train_fno_burgers_bc_output/
+├── train_fno_burgers_bc_real_freq_output/
+├── train_fno_burgers_optimal_control/
+└── train_fno_burgers_real_freq_output_optimal_control/
+```
 
-1. Generate data: `python generate_heat_optimal_control_data.py`
-2. Train: `python train_deeponet_heat_bc.py` or `python train_fno_heat_bc.py`
-3. Run inference with a trained model as in the heat_optimal_control_* scripts.
+## Problem Setting
+
+We model the 1D viscous Burgers equation:
+
+$$
+ u_t + u u_x = \nu u_{xx}
+$$
+
+with time-dependent Dirichlet boundary conditions:
+
+$$
+ u(0,t)=g_{\text{left}}(t), \quad u(L,t)=g_{\text{right}}(t)
+$$
+
+The learning target is the operator mapping boundary condition histories to the full space-time solution field.
+
+## Quick Start
+
+```bash
+cd burgers_bc_data
+python generate_burgers_bc_data.py --samples 50 --out burgers_bc_data.npz --plot
+python train_fno_burgers_bc.py
+```
+
+## Data Format
+
+The main dataset file is `burgers_bc_data/burgers_bc_data.npz`, containing:
+- `g_left`: left boundary trajectories
+- `g_right`: right boundary trajectories
+- `u`: solution fields on the space-time grid
+- `x`: spatial grid
+- `t`: temporal grid
+
+## Reproducibility Notes
+
+- Random sampling is controlled by script-level seed options.
+- Training logs and comparison metrics are included in output subfolders.
+- Script defaults are tuned for consistency with experiments described in the associated paper.
+
+## Citation
+
+If you use this branch in research, please cite your paper and acknowledge this code release.
+
+## License
+
+Use the same license terms as the parent repository unless stated otherwise in the publication package.

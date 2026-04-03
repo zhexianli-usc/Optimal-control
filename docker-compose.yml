@@ -1,8 +1,0 @@
-services:
-  fenics:
-    build: .
-    image: optimal-control-fenics
-    volumes:
-      - .:/root/shared
-    working_dir: /root/shared
-    command: python3 Optimal_control.py
