@@ -54,6 +54,20 @@ python generate_burgers_bc_data.py --samples 50 --out burgers_bc_data.npz --plot
 python train_fno_burgers_bc.py
 ```
 
+## Training Models
+
+This release includes two operator-learning training scripts for BC-to-solution mapping:
+
+- `train_fno_burgers_bc.py`: **Extended Fourier Neural Operator (E-FNO)** implementation (complex-frequency inverse formulation).
+- `train_fno_burgers_bc_real_freq.py`: **Classical Fourier Neural Operator (FNO)** implementation using real-frequency discrete Fourier transforms.
+
+Run them from `burgers_bc_data`:
+
+```bash
+python train_fno_burgers_bc.py
+python train_fno_burgers_bc_real_freq.py
+```
+
 ## Data Format
 
 The main dataset file is `burgers_bc_data/burgers_bc_data.npz`, containing:

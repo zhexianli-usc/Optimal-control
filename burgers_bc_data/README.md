@@ -45,6 +45,20 @@ Or use the helper scripts (run from `burgers_bc_data` in **Anaconda Prompt** or 
   `data = np.load("burgers_bc_data.npz", allow_pickle=True)`  
   then `g_left`, `g_right`, `u`, `x`, `t` = `data["g_left"]`, etc.
 
+## Training scripts (model types)
+
+This folder provides two training pipelines for BC-to-solution operator learning:
+
+- `train_fno_burgers_bc.py`: **Extended Fourier Neural Operator (E-FNO)** with complex-frequency inverse formulation.
+- `train_fno_burgers_bc_real_freq.py`: **Classical Fourier Neural Operator (FNO)** using real-frequency discrete Fourier transforms.
+
+Run from `burgers_bc_data`:
+
+```bash
+python train_fno_burgers_bc.py
+python train_fno_burgers_bc_real_freq.py
+```
+
 ## Solver (`generate_burgers_bc_data.py`)
 
 - **Explicit Euler** in time; **upwind** \( u_x \); explicit diffusion \( \nu u_{xx} \); Dirichlet BCs each sub-step.
