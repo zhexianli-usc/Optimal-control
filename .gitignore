@@ -1,0 +1,26 @@
+# Python caches
+__pycache__/
+*.py[cod]
+
+# Virtual environments
+.venv/
+venv/
+
+# OS/editor noise
+.DS_Store
+
+# Training / experiment outputs
+*_output/
+*_output*/
+heat_rl_efno_output/
+heat_rl_efno_output_debug/
+heat_rl_efno_output_debug2/
+heat_rl_efno_compare_output/
+
+# Checkpoints / exported weights / logs / plots
+*.pt
+*.pth
+*.ckpt
+*.npz
+*.png
+*.csv

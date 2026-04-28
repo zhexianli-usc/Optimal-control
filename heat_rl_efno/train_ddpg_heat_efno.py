@@ -21,7 +21,7 @@ import torch.nn as nn
 import torch.optim as optim
 
 if __package__ in (None, ""):
-    # Support direct script execution: python heat_rl_efno/train_ddpg_heat_efno.py
+    # Direct script execution: python heat_rl_efno/train_ddpg_heat_efno.py
     repo_root = Path(__file__).resolve().parents[1]
     if str(repo_root) not in sys.path:
         sys.path.insert(0, str(repo_root))
@@ -86,7 +86,7 @@ def collect_transitions(
         a[:, -1] = 0.0
         u_next = env.step(u[:, :, n], a)
         u[:, :, n + 1] = u_next
-        r = env.step_reward(a, u_next)
+        r = env.step_reward(a, u_next, env.t[n + 1])
         done = n == nt - 2
         if done:
             s2 = torch.zeros_like(s)
@@ -101,6 +101,11 @@ def collect_transitions(
 def train(args):
     device = torch.device("cuda" if torch.cuda.is_available() and not args.cpu else "cpu")
     set_seed(args.seed)
+    if device.type == "cuda":
+        di = 0 if device.index is None else int(device.index)
+        print(f"Device: {device} ({torch.cuda.get_device_name(di)})")
+    else:
+        print(f"Device: {device}")
 
     cfg = HeatEnvConfig.from_rl_args(args)
     env = HeatEnv(cfg, device)
@@ -197,14 +202,14 @@ def train(args):
                 f"q_loss={q_loss_acc:.4f}  actor_loss={a_loss_acc:.4f}  noise={noise:.4f}  buf={len(buf)}"
             )
 
-        if ep % args.save_interval == 0:
-            ckpt = {
-                "actor": actor.state_dict(),
-                "critic": critic.state_dict(),
-                "cfg": cfg,
-                "args": vars(args),
-            }
-            torch.save(ckpt, os.path.join(args.out_dir, f"checkpoint_ep{ep}.pt"))
+        # if ep % args.save_interval == 0:
+        #     ckpt = {
+        #         "actor": actor.state_dict(),
+        #         "critic": critic.state_dict(),
+        #         "cfg": cfg,
+        #         "args": vars(args),
+        #     }
+        #     torch.save(ckpt, os.path.join(args.out_dir, f"checkpoint_ep{ep}.pt"))
 
     final_ckpt = {
         "actor": actor.state_dict(),
@@ -218,11 +223,11 @@ def train(args):
 def main():
     env_d = heat_env_defaults()
     p = argparse.ArgumentParser()
-    p.add_argument("--episodes", type=int, default=400)
-    p.add_argument("--batch-envs", type=int, default=16, help="Parallel rollouts per episode")
-    p.add_argument("--batch-train", type=int, default=64)
-    p.add_argument("--buffer-size", type=int, default=50_000)
-    p.add_argument("--updates-per-episode", type=int, default=80)
+    p.add_argument("--episodes", type=int, default=1000)
+    p.add_argument("--batch-envs", type=int, default=10, help="Parallel rollouts per episode")
+    p.add_argument("--batch-train", type=int, default=20)
+    p.add_argument("--buffer-size", type=int, default=2000)
+    p.add_argument("--updates-per-episode", type=int, default=10)
     p.add_argument("--gamma", type=float, default=0.99)
     p.add_argument("--tau", type=float, default=0.005)
     p.add_argument("--lr-actor", type=float, default=1e-4)
@@ -238,15 +243,16 @@ def main():
     p.add_argument("--u-max", type=float, default=env_d.u_abs_max, help="Soft state threshold |u| (HeatEnvConfig.u_abs_max)")
     p.add_argument("--w-control", type=float, default=env_d.w_control)
     p.add_argument("--w-constraint", type=float, default=env_d.w_constraint)
+    p.add_argument("--w-tracking", type=float, default=env_d.w_tracking)
     p.add_argument("--a-max", type=float, default=2.0, help="tanh bound on control magnitude")
     p.add_argument("--k-max", type=int, default=8)
-    p.add_argument("--width", type=int, default=32)
-    p.add_argument("--n-layers", type=int, default=4)
+    p.add_argument("--width", type=int, default=2)
+    p.add_argument("--n-layers", type=int, default=1)
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--cpu", action="store_true")
     p.add_argument("--out-dir", type=str, default="heat_rl_efno_output")
-    p.add_argument("--log-interval", type=int, default=20)
-    p.add_argument("--save-interval", type=int, default=200)
+    p.add_argument("--log-interval", type=int, default=100)
+    p.add_argument("--save-interval", type=int, default=20)
     args = p.parse_args()
     train(args)
 

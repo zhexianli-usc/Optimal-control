@@ -22,14 +22,16 @@ class HeatEnvConfig:
     L: float = 1.0
     T: float = 0.5
     alpha: float = 0.1
-    nx: int = 65
-    nt: int = 33
+    nx: int = 20
+    nt: int = 10
     """Spatial grid including boundaries; Nt time slices including t=0."""
     u_abs_max: float = 0.5
     """Soft constraint: penalize |u| above this threshold (interior)."""
     w_control: float = 1e-3
     w_constraint: float = 5.0
     """Weight on mean squared ReLU(|u| - u_abs_max)."""
+    w_tracking: float = 1.0
+    """Weight on mean squared tracking error to u_desired."""
 
     @classmethod
     def from_rl_args(cls, args: Any) -> HeatEnvConfig:
@@ -43,6 +45,7 @@ class HeatEnvConfig:
             u_abs_max=float(args.u_max),
             w_control=float(args.w_control),
             w_constraint=float(args.w_constraint),
+            w_tracking=float(args.w_tracking),
         )
 
 
@@ -118,12 +121,38 @@ def constraint_penalty_from_u(u: torch.Tensor, u_abs_max: float) -> torch.Tensor
     return (excess**2).mean(dim=1)
 
 
-def step_cost(a_n: torch.Tensor, u_next: torch.Tensor, cfg: HeatEnvConfig) -> torch.Tensor:
-    """Scalar cost per step (B,); matches negative RL reward: w_ctrl E[a^2] + w_con penalty."""
+def desired_u_profile(x: torch.Tensor, t_scalar: torch.Tensor | float, L: float) -> torch.Tensor:
+    """u_desired(x,t) = 16 * x * (x-L) * sin(pi * t), shape-compatible with x."""
+    if not torch.is_tensor(t_scalar):
+        t_scalar = torch.tensor(t_scalar, dtype=x.dtype, device=x.device)
+    return 16.0 * x * (x - L) * torch.sin(torch.pi * t_scalar)
+
+
+def tracking_cost_from_u(
+    u_next: torch.Tensor,
+    t_next: torch.Tensor | float,
+    cfg: HeatEnvConfig,
+) -> torch.Tensor:
+    """(B,) mean squared tracking error to desired profile on interior."""
+    nx = u_next.shape[1]
+    x = torch.linspace(0.0, cfg.L, nx, device=u_next.device, dtype=u_next.dtype)
+    u_des = desired_u_profile(x, t_next, cfg.L).unsqueeze(0).expand_as(u_next)
+    err = interior_mask_u(u_next - u_des)
+    return (err**2).mean(dim=1)
+
+
+def step_cost(
+    a_n: torch.Tensor,
+    u_next: torch.Tensor,
+    cfg: HeatEnvConfig,
+    t_next: torch.Tensor | float,
+) -> torch.Tensor:
+    """Scalar cost per step (B,): control + state-constraint + desired-state tracking."""
     a_int = interior_mask_u(a_n)
     c_ctrl = (a_int**2).mean(dim=1) * cfg.w_control
     c_pen = constraint_penalty_from_u(u_next, cfg.u_abs_max) * cfg.w_constraint
-    return c_ctrl + c_pen
+    c_track = tracking_cost_from_u(u_next, t_next, cfg) * cfg.w_tracking
+    return c_ctrl + c_pen + c_track
 
 
 class HeatEnv:
@@ -160,12 +189,9 @@ class HeatEnv:
         """Mean squared violation of |u| <= u_abs_max on interior (B,)."""
         return constraint_penalty_from_u(u, self.cfg.u_abs_max)
 
-    def step_reward(self, a_n: torch.Tensor, u_next: torch.Tensor) -> torch.Tensor:
-        """Per-step reward (B,): negative control effort and state constraint penalty."""
-        a_int = self._interior(a_n)
-        r_ctrl = -(a_int ** 2).mean(dim=1) * self.cfg.w_control
-        r_pen = -self.constraint_penalty(u_next) * self.cfg.w_constraint
-        return r_ctrl + r_pen
+    def step_reward(self, a_n: torch.Tensor, u_next: torch.Tensor, t_next: torch.Tensor | float) -> torch.Tensor:
+        """Per-step reward (B,): negative of step_cost at time t_next."""
+        return -step_cost(a_n, u_next, self.cfg, t_next)
 
     def rollout(self, u0: torch.Tensor, a_xt: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """
@@ -188,5 +214,5 @@ class HeatEnv:
             u_k = u[:, :, k]
             u_next = self.step(u_k, a_k)
             u[:, :, k + 1] = u_next
-            total_r = total_r + self.step_reward(a_k, u_next)
+            total_r = total_r + self.step_reward(a_k, u_next, self.t[k + 1])
         return u, total_r
