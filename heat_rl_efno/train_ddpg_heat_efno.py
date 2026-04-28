@@ -223,7 +223,7 @@ def train(args):
 def main():
     env_d = heat_env_defaults()
     p = argparse.ArgumentParser()
-    p.add_argument("--episodes", type=int, default=400)
+    p.add_argument("--episodes", type=int, default=20)
     p.add_argument("--batch-envs", type=int, default=2, help="Parallel rollouts per episode")
     p.add_argument("--batch-train", type=int, default=4)
     p.add_argument("--buffer-size", type=int, default=2000)
