@@ -39,7 +39,7 @@ def load_cfg_from_checkpoint(ckpt_path: str, device: torch.device) -> HeatEnvCon
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("--checkpoint", type=str, required=True, help="Checkpoint used to get HeatEnvConfig")
+    p.add_argument("--checkpoint", type=str, default="heat_rl_efno_output/checkpoint_final.pt", help="Checkpoint used to get HeatEnvConfig")
     p.add_argument("--out-file", type=str, default="heat_rl_efno_compare_output/adjoint_results.npz")
     p.add_argument("--n-samples", type=int, default=8)
     p.add_argument("--seed", type=int, default=42)

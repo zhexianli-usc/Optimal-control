@@ -28,10 +28,12 @@ if __package__ in (None, ""):
     from heat_rl_efno.heat_env import HeatEnv, HeatEnvConfig, heat_env_defaults
     from heat_rl_efno.models import ActorEFNO, CriticQEFNO, gather_action_time, state_tensor
     from heat_rl_efno.replay_buffer import ReplayBuffer
+    from heat_rl_efno.rollouts import rollout_policy
 else:
     from .heat_env import HeatEnv, HeatEnvConfig, heat_env_defaults
     from .models import ActorEFNO, CriticQEFNO, gather_action_time, state_tensor
     from .replay_buffer import ReplayBuffer
+    from .rollouts import rollout_policy
 
 
 def set_seed(seed: int):
@@ -129,8 +131,10 @@ def train(args):
 
     os.makedirs(args.out_dir, exist_ok=True)
     log_path = os.path.join(args.out_dir, "train_log.csv")
+    eval_u0 = random_initial_u0(args.eval_batch_envs, nx, cfg.L, device)
+    eval_u0 = eval_u0.clone()
     with open(log_path, "w") as f:
-        f.write("episode,q_loss,actor_loss,mean_return\n")
+        f.write("episode,q_loss,actor_loss,mean_return_train,mean_return_eval\n")
 
     for ep in range(1, args.episodes + 1):
         noise = max(args.noise_final, args.noise_init * (args.noise_decay**ep))
@@ -150,6 +154,7 @@ def train(args):
                 )
 
         mean_ret = float(ep_ret.mean().item())
+        mean_ret_eval = float("nan")
         q_loss_acc = 0.0
         a_loss_acc = 0.0
         n_updates = 0
@@ -193,13 +198,17 @@ def train(args):
         if n_updates > 0:
             q_loss_acc /= n_updates
             a_loss_acc /= n_updates
+        with torch.no_grad():
+            _, _, ret_eval = rollout_policy(actor, env, eval_u0, x_norm, t_norm)
+            mean_ret_eval = float(ret_eval.mean().item())
         with open(log_path, "a") as f:
-            f.write(f"{ep},{q_loss_acc:.6f},{a_loss_acc:.6f},{mean_ret:.6f}\n")
+            f.write(f"{ep},{q_loss_acc:.6f},{a_loss_acc:.6f},{mean_ret:.6f},{mean_ret_eval:.6f}\n")
 
         if ep % args.log_interval == 0 or ep == 1:
             print(
                 f"episode {ep}/{args.episodes}  mean_return={mean_ret:.4f}  "
-                f"q_loss={q_loss_acc:.4f}  actor_loss={a_loss_acc:.4f}  noise={noise:.4f}  buf={len(buf)}"
+                f"mean_return_eval={mean_ret_eval:.4f}  q_loss={q_loss_acc:.4f}  "
+                f"actor_loss={a_loss_acc:.4f}  noise={noise:.4f}  buf={len(buf)}"
             )
 
         if ep % args.save_interval == 0:
@@ -223,11 +232,11 @@ def train(args):
 def main():
     env_d = heat_env_defaults()
     p = argparse.ArgumentParser()
-    p.add_argument("--episodes", type=int, default=20)
-    p.add_argument("--batch-envs", type=int, default=2, help="Parallel rollouts per episode")
-    p.add_argument("--batch-train", type=int, default=4)
-    p.add_argument("--buffer-size", type=int, default=2000)
-    p.add_argument("--updates-per-episode", type=int, default=2)
+    p.add_argument("--episodes", type=int, default=400)
+    p.add_argument("--batch-envs", type=int, default=16, help="Parallel rollouts per episode")
+    p.add_argument("--batch-train", type=int, default=64)
+    p.add_argument("--buffer-size", type=int, default=50_000)
+    p.add_argument("--updates-per-episode", type=int, default=80)
     p.add_argument("--gamma", type=float, default=0.99)
     p.add_argument("--tau", type=float, default=0.005)
     p.add_argument("--lr-actor", type=float, default=1e-4)
@@ -249,14 +258,13 @@ def main():
     p.add_argument("--width", type=int, default=32)
     p.add_argument("--n-layers", type=int, default=4)
     p.add_argument("--seed", type=int, default=0)
+    p.add_argument("--eval-batch-envs", type=int, default=16, help="Fixed evaluation IC batch size (no exploration noise)")
     p.add_argument("--cpu", action="store_true")
     p.add_argument("--out-dir", type=str, default="heat_rl_efno_output")
-    p.add_argument("--log-interval", type=int, default=1)
-    p.add_argument("--save-interval", type=int, default=20)
+    p.add_argument("--log-interval", type=int, default=20)
+    p.add_argument("--save-interval", type=int, default=200)
     args = p.parse_args()
     train(args)
 
 
-if __name__ == "__main__":
-    # Run from repo root: python -m heat_rl_efno.train_ddpg_heat_efno
-    main()
+if __name__ == "__main_
