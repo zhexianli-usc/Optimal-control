@@ -86,7 +86,7 @@ def collect_transitions(
         a[:, -1] = 0.0
         u_next = env.step(u[:, :, n], a)
         u[:, :, n + 1] = u_next
-        r = env.step_reward(a, u_next)
+        r = env.step_reward(a, u_next, env.t[n + 1])
         done = n == nt - 2
         if done:
             s2 = torch.zeros_like(s)
@@ -243,6 +243,7 @@ def main():
     p.add_argument("--u-max", type=float, default=env_d.u_abs_max, help="Soft state threshold |u| (HeatEnvConfig.u_abs_max)")
     p.add_argument("--w-control", type=float, default=env_d.w_control)
     p.add_argument("--w-constraint", type=float, default=env_d.w_constraint)
+    p.add_argument("--w-tracking", type=float, default=env_d.w_tracking)
     p.add_argument("--a-max", type=float, default=2.0, help="tanh bound on control magnitude")
     p.add_argument("--k-max", type=int, default=8)
     p.add_argument("--width", type=int, default=32)

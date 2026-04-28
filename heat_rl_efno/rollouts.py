@@ -40,7 +40,7 @@ def rollout_policy(
         a_seq[:, :, n] = a
         u_next = env.step(u[:, :, n], a)
         u[:, :, n + 1] = u_next
-        total_r = total_r + env.step_reward(a, u_next)
+        total_r = total_r + env.step_reward(a, u_next, env.t[n + 1])
     return u, a_seq, total_r
 
 

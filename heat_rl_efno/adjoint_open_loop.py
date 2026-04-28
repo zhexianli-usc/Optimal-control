@@ -38,7 +38,8 @@ def differentiable_rollout(
         ak[:, -1] = 0.0
         u_next = cn_step(u[:, :, k], ak, ctx)
         u[:, :, k + 1] = u_next
-        total = total + step_cost(ak, u_next, cfg)
+        t_next = (k + 1) * cfg.T / (cfg.nt - 1)
+        total = total + step_cost(ak, u_next, cfg, t_next)
     return u, total
 
 
