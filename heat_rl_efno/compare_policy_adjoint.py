@@ -54,6 +54,18 @@ def load_actor(ckpt_path: str, device: torch.device) -> tuple[ActorEFNO, HeatEnv
     return actor, cfg, args
 
 
+def _xt_mesh_for_field(x: np.ndarray, t: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Build (X, T) node grids for fields stored on (nx, nt) with x[i], t[j].
+
+    Using `imshow(..., extent=(x0,x1,t0,t1))` maps *pixel centers* to the domain corners, which
+    visually mis-aligns boundary rows with x=0 and x=L. `pcolormesh` with `shading="auto"` matches
+    nodal samples to their coordinates.
+    """
+    X, T = np.meshgrid(x.astype(np.float64), t.astype(np.float64), indexing="ij")
+    return X, T
+
+
 def maybe_plot(
     out_png: str,
     x: np.ndarray,
@@ -64,7 +76,7 @@ def maybe_plot(
     import matplotlib.pyplot as plt
 
     # u_* shape (nx, nt): rows = x index, cols = time (matches tensors in rollout)
-    extent = (float(x[0]), float(x[-1]), float(t[0]), float(t[-1]))
+    X, T = _xt_mesh_for_field(x, t)
     fig, axes = plt.subplots(1, 2, figsize=(10, 4), sharey=True, constrained_layout=True)
     last_im = None
     for ax, u, title in zip(
@@ -72,14 +84,7 @@ def maybe_plot(
         [u_rl, u_adj],
         ["RL policy (closed-loop)", "Numerical adjoint open-loop"],
     ):
-        last_im = ax.imshow(
-            u,
-            origin="lower",
-            aspect="auto",
-            extent=extent,
-            cmap="viridis",
-            interpolation="nearest",
-        )
+        last_im = ax.pcolormesh(X, T, u, shading="auto", cmap="viridis")
         ax.set_title(title)
         ax.set_xlabel("x")
     axes[0].set_ylabel("t")
@@ -100,7 +105,7 @@ def maybe_plot_control(
 
     # a_* shape (nx, nt-1): control at each time step t_n, n=0..nt-2
     t_ctrl = t[:-1] if t.shape[0] == a_rl.shape[1] + 1 else t[: a_rl.shape[1]]
-    extent = (float(x[0]), float(x[-1]), float(t_ctrl[0]), float(t_ctrl[-1]))
+    X, Tc = _xt_mesh_for_field(x, t_ctrl)
     vmax = max(float(np.max(np.abs(a_rl))), float(np.max(np.abs(a_adj))), 1e-8)
 
     fig, axes = plt.subplots(1, 2, figsize=(10, 4), sharey=True, constrained_layout=True)
@@ -110,16 +115,7 @@ def maybe_plot_control(
         [a_rl, a_adj],
         ["RL policy control", "Numerical adjoint control"],
     ):
-        last_im = ax.imshow(
-            a,
-            origin="lower",
-            aspect="auto",
-            extent=extent,
-            cmap="coolwarm",
-            vmin=-vmax,
-            vmax=vmax,
-            interpolation="nearest",
-        )
+        last_im = ax.pcolormesh(X, Tc, a, shading="auto", cmap="coolwarm", vmin=-vmax, vmax=vmax)
         ax.set_title(title)
         ax.set_xlabel("x")
     axes[0].set_ylabel("t")

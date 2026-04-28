@@ -28,7 +28,7 @@ class HeatEnvConfig:
     u_abs_max: float = 0.5
     """Soft constraint: penalize |u| above this threshold (interior)."""
     w_control: float = 1e-3
-    w_constraint: float = 5.0
+    w_constraint: float = 0.0
     """Weight on mean squared ReLU(|u| - u_abs_max)."""
     w_tracking: float = 1.0
     """Weight on mean squared tracking error to u_desired."""

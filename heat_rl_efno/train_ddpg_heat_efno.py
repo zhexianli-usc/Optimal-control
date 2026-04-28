@@ -232,7 +232,7 @@ def train(args):
 def main():
     env_d = heat_env_defaults()
     p = argparse.ArgumentParser()
-    p.add_argument("--episodes", type=int, default=400)
+    p.add_argument("--episodes", type=int, default=100)
     p.add_argument("--batch-envs", type=int, default=16, help="Parallel rollouts per episode")
     p.add_argument("--batch-train", type=int, default=64)
     p.add_argument("--buffer-size", type=int, default=50_000)
@@ -267,4 +267,6 @@ def main():
     train(args)
 
 
-if __name__ == "__main_
+if __name__ == "__main__":
+    # Run from repo root: python -m heat_rl_efno.train_ddpg_heat_efno
+    main()

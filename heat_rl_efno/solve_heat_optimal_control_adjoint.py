@@ -35,7 +35,7 @@ class HeatAdjointResult:
 
 
 def desired_u_np(x: np.ndarray, t_scalar: float, L: float) -> np.ndarray:
-    return 16.0 * x * (x - L) * np.sin(np.pi * t_scalar)
+    return x * (x - L) * np.sin(np.pi * t_scalar)
 
 
 def _build_cn_mats(cfg: HeatEnvConfig):
