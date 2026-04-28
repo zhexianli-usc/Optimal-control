@@ -13,14 +13,25 @@ from __future__ import annotations
 import argparse
 import os
 import random
+import sys
+from pathlib import Path
 
 import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from .heat_env import HeatEnv, HeatEnvConfig, heat_env_defaults
-from .models import ActorEFNO, CriticQEFNO, gather_action_time, state_tensor
-from .replay_buffer import ReplayBuffer
+if __package__ in (None, ""):
+    # Support direct script execution: python heat_rl_efno/train_ddpg_heat_efno.py
+    repo_root = Path(__file__).resolve().parents[1]
+    if str(repo_root) not in sys.path:
+        sys.path.insert(0, str(repo_root))
+    from heat_rl_efno.heat_env import HeatEnv, HeatEnvConfig, heat_env_defaults
+    from heat_rl_efno.models import ActorEFNO, CriticQEFNO, gather_action_time, state_tensor
+    from heat_rl_efno.replay_buffer import ReplayBuffer
+else:
+    from .heat_env import HeatEnv, HeatEnvConfig, heat_env_defaults
+    from .models import ActorEFNO, CriticQEFNO, gather_action_time, state_tensor
+    from .replay_buffer import ReplayBuffer
 
 
 def set_seed(seed: int):
