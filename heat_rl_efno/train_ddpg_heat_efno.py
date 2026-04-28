@@ -90,6 +90,11 @@ def collect_transitions(
 def train(args):
     device = torch.device("cuda" if torch.cuda.is_available() and not args.cpu else "cpu")
     set_seed(args.seed)
+    if device.type == "cuda":
+        di = 0 if device.index is None else int(device.index)
+        print(f"Device: {device} ({torch.cuda.get_device_name(di)})")
+    else:
+        print(f"Device: {device}")
 
     cfg = HeatEnvConfig.from_rl_args(args)
     env = HeatEnv(cfg, device)
@@ -234,8 +239,8 @@ def main():
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--cpu", action="store_true")
     p.add_argument("--out-dir", type=str, default="heat_rl_efno_output")
-    p.add_argument("--log-interval", type=int, default=20)
-    p.add_argument("--save-interval", type=int, default=200)
+    p.add_argument("--log-interval", type=int, default=1)
+    p.add_argument("--save-interval", type=int, default=20)
     args = p.parse_args()
     train(args)
 
