@@ -27,7 +27,7 @@ class HeatEnvConfig:
     """Spatial grid including boundaries; Nt time slices including t=0."""
     u_abs_max: float = 0.5
     """Soft constraint: penalize |u| above this threshold (interior)."""
-    w_control: float = 1e-3
+    w_control: float = 0.5
     w_constraint: float = 0.0
     """Weight on mean squared ReLU(|u| - u_abs_max)."""
     w_tracking: float = 1.0

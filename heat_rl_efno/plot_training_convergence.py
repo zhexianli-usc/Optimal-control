@@ -33,11 +33,25 @@ def read_log(csv_path: str):
     ep, q, a, r = [], [], [], []
     with open(csv_path, newline="") as f:
         reader = csv.DictReader(f)
+        if reader.fieldnames is None:
+            raise ValueError(f"Missing CSV header in {csv_path}")
+        fields = set(reader.fieldnames)
+        if "mean_return_eval" in fields:
+            return_key = "mean_return_eval"
+        elif "mean_return_train" in fields:
+            return_key = "mean_return_train"
+        elif "mean_return" in fields:
+            return_key = "mean_return"
+        else:
+            raise KeyError(
+                "Expected one of return columns: mean_return_eval, mean_return_train, mean_return; "
+                f"found {sorted(fields)}"
+            )
         for row in reader:
             ep.append(int(row["episode"]))
             q.append(float(row["q_loss"]))
             a.append(float(row["actor_loss"]))
-            r.append(float(row["mean_return"]))
+            r.append(float(row[return_key]))
     return np.array(ep), np.array(q), np.array(a), np.array(r)
 
 
